@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Leo;
 
+use Leo\Model\Model;
 use Leo\Model\DataType;
 use Leo\Model\DataTypes;
+use Leo\Model\FetchFul\FetchFulOne;
 use Leo\Model\Interface\CaseConvertor;
 use Nette\Caching;
 use Nette\Database\Drivers;
@@ -79,7 +81,13 @@ final class ModelFactory
                     allowNull: ($column['vendor']['notnull'] ?? 0) == 0,
                 );
             }
-            $dataTypes[$table['name']] = $columns;
+
+            $primary = $this->explorer->getStructure()->getPrimaryKey($table['name']);
+
+            $dataTypes[$table['name']] = [
+                'columns' => $columns,
+                'primary' => is_array($primary) ? $primary : [$primary],
+            ];
         }
         return $dataTypes;
     }
@@ -89,12 +97,34 @@ final class ModelFactory
      * @param string<T> $model
      * @return T
      */
-    public function createModel(string $model)
+    public function createModel(string $model, FetchFulOne $fetchFul)
     {
+        InjectExtension::callInjects($this->container, $fetchFul);
+
         $class = new $model;
 
+        $dbTable = $class::$dbTable
+            ?? $class::$dbTable = $this
+                ->caseConvertor
+                ->reverse(preg_replace(
+                    pattern: '#^.*\\\\(.*)Model$#',
+                    replacement: '$1',
+                    subject: $model
+                ))
+        ;
+        $fetch = $fetchFul
+            ->setTable($dbTable)
+            ->fetchOne()
+            ->toArray()
+        ;
+        return $this->getModel($class, $fetch);
+    }
 
-
-        return $class;
+    private function getModel(Model $model, iterable $data)
+    {
+        foreach ($data as $column => $value) {
+            $model->{$this->caseConvertor->convert($column)} = $value;
+        }
+        return $model;
     }
 }
