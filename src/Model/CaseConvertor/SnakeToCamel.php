@@ -8,10 +8,6 @@ class SnakeToCamel implements CaseConvertor
 {
     use ReverseTrait;
 
-    public function injectReverse(): void
-    {
-        $this->reverse = new CamelToSnake();
-    }
 
     public function convert(string $string): string
     {

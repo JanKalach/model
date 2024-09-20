@@ -13,7 +13,9 @@ class ModelExtension extends Nette\DI\CompilerExtension
         return Expect::structure([
             'collection' => Expect::string()->default('#(.*(ModelModel|Entity))Collection$#'),
             'model' => Expect::string()->default('$1'),
-            'caseConvertor' => Expect::string()->default(Leo\Model\Convertor\NoChange::class),
+            'caseConvertor' => Expect::string()->default(Leo\Model\CaseConvertor\NoChange::class),
+            'typeMapper' => Expect::string()->default(Leo\Bridges\Database\MySqlTypeMapper::class),
+            'rememberLoadedClasses' => Expect::bool(true),
             'mapping' => Expect::structure([
                 'model' => Expect::string()->default('App\\Model\\*\\*Model'),
                 'collection' => Expect::string()->default('App\\Model\\*\\*Collection'),
@@ -33,14 +35,26 @@ class ModelExtension extends Nette\DI\CompilerExtension
             ->setFactory($config->caseConvertor)
         ;
         $builder
+            ->addDefinition($this->prefix('typeMapper'))
+            ->setFactory($config->typeMapper)
+        ;
+
+        $builder
+            ->addDefinition($this->prefix('cache'))
+            ->setFactory(Leo\Bridges\ModelCache::class, ['@cache.storage', 'models'])
+        ;
+
+        $builder
             ->addDefinition($this->prefix('factory'))
             ->setFactory(Leo\ModelFactory::class, [
                 '@database.default.explorer',
                 '@model.caseConvertor',
                 '@container',
-                '@cache.storage',
+                '@model.cache',
+                '@model.typeMapper',
             ])
             ->addSetup('setMapping', [$config->mapping])
+            ->addSetup('setRememberLoadedClasses', [$config->rememberLoadedClasses])
         ;
     }
 }

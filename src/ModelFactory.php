@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace Leo;
 
-use Leo\Exception\InvalidModelException;
-use Leo\Model\Model;
+use Leo\Bridges\Database\TypeMapper;
 use Leo\Model\DataType;
 use Leo\Model\DataTypes;
 use Leo\Model\FetchFul\FetchFulOne;
 use Leo\Model\Interface\CaseConvertor;
 use Nette;
 use Nette\Caching;
-use Nette\Database\Drivers;
 use Nette\Database\Explorer;
 use Nette\DI\Container;
 use Nette\DI\Extensions\InjectExtension;
@@ -26,19 +24,24 @@ final class ModelFactory
     private CaseConvertor $caseConvertor;
     private DataTypes $dataTypes;
     private ArrayHash $mapping;
+    private TypeMapper $typeMapper;
+
+    private bool $rememberLoadedClasses = true;
+    private array $loaded = [];
 
     public function __construct(
         Explorer $explorer,
         CaseConvertor $caseConvertor,
         Container $container,
-        Caching\Storage $storage,
-
+        Caching\Cache $cache,
+        TypeMapper $typeMapper,
     )
     {
         $this->container = $container;
         $this->explorer = $explorer;
         $this->caseConvertor = $caseConvertor;
-        $this->cache = new Caching\Cache($storage, 'models');
+        $this->typeMapper = $typeMapper;
+        $this->cache = $cache; //new Caching\Cache($storage, 'models');
 
         InjectExtension::callInjects($this->container, $this->caseConvertor);
 
@@ -70,7 +73,18 @@ final class ModelFactory
         return $this;
     }
 
-    public function getClassName(string $model, string $from, string $to): string
+    public function setRememberLoadedClasses(bool $rememberLoadedClasses): static
+    {
+        $this->rememberLoadedClasses = $rememberLoadedClasses;
+        return $this;
+    }
+
+    public function getExplorer(): Explorer
+    {
+        return $this->explorer;
+    }
+
+    protected function getClassName(string $model, string $from, string $to): string
     {
         if (!isset($this->mapping[$from]) || !isset($this->mapping[$to])) {
             throw new Nette\InvalidStateException("Mapping '$from' or '$to' does not exist.");
@@ -87,18 +101,13 @@ final class ModelFactory
 
     private function generateDataTypes(): DataTypes
     {
-        $typeChecker = match (get_class($this->explorer->getConnection()->getDriver())) {
-            Drivers\MySqlDriver::class => new Bridges\Database\MySqlTypeMapper(),
-            default => new Bridges\Database\StringTypeMapper()
-        };
-
         $dataTypes = new DataTypes();
 
         foreach ($this->explorer->getStructure()->getTables() as $table) {
             $columns = [];
             foreach ($this->explorer->getStructure()->getColumns($table['name']) as $column) {
                 $columnName = $this->caseConvertor->convert($column['name']);
-                $columns[$columnName] = new DataType($column, $typeChecker);
+                $columns[$columnName] = new DataType($column, $this->typeMapper);
             }
 
             $primaryKey = $this->explorer->getStructure()->getPrimaryKey($table['name']);
@@ -116,35 +125,81 @@ final class ModelFactory
      * @param string<T> $model
      * @return T
      */
-    public function createModel(string $model, FetchFulOne $fetchFul)
+    public function createModel(string $model, FetchFulOne $fetchFul, bool $useCache = true)
     {
-        InjectExtension::callInjects($this->container, $fetchFul);
+        $table = $this->getModelTable($model, $fetchFul);
+        $fetchFul->setTable($table);
 
-//        \Tracy\Debugger::barDump($this->getClassName('App\\Model\\ModuleName\\NameOfCollection', 'collection', 'model'));
-//        \Tracy\Debugger::barDump($this->getClassName('App\\Model\\NameOfCollection', 'collection', 'model'));
+        if (!$useCache) {
+            $class = $this->getModel($model, $fetchFul);
+            InjectExtension::callInjects($this->container, $class);
+            $class->__init();
+            return $class;
+        }
+
+        $cacheName = $this->getModelCacheName($model, $table, $fetchFul);
+        if (isset($this->loaded[$cacheName])) {
+            return $this->loaded[$cacheName];
+        }
+
+        $class = $this->cache->load($cacheName, function () use ($model, $fetchFul, $cacheName) {
+            InjectExtension::callInjects($this->container, $fetchFul);
+            return $this->getModel($model, $fetchFul);
+        });
+
+        $class::$dbTable = $table;
+        $class->setCacheName($cacheName);
+        InjectExtension::callInjects($this->container, $class);
+        $class->__init();
+        if ($this->rememberLoadedClasses) {
+            $this->loaded[$cacheName] = $class;
+        }
+        return $class;
+    }
+
+    protected function getModel(string $model, FetchFulOne $fetchFul)
+    {
         $class = new $model;
 
-        $class::$dbTable = $class::$dbTable
-            ?? $fetchFul->getTable()
-            ?? strtolower(str_replace('\\', '_', preg_replace(
-                '#' . $this->mapping['model'] . '$#',
-                '$1',
-                $model
-            )))
-        ;
-        \Tracy\Debugger::barDump($class::$dbTable);
+        $class::$dbTable = $class::$dbTable ?? $this->getModelTable($model, $fetchFul);
         $fetch = $fetchFul
             ->setTable($class::$dbTable)
             ->fetchOne()
         ;
-        return $this->getModel($class, $fetch);
+
+        if (is_null($fetch)) {
+            return $class;
+        }
+
+        foreach ($fetch as $column => $value) {
+            $columnName = $this->caseConvertor->convert($column);
+            $class->$columnName = $this
+                ->typeMapper
+                ->mapValue($value, $this->dataTypes->getDataType($class::$dbTable, $columnName)
+                )
+            ;
+        }
+
+        return $class;
     }
 
-    private function getModel(Model $model, iterable $data)
+    protected function getModelTable(string $model, FetchFulOne $fetchFul): string
     {
-        foreach ($data as $column => $value) {
-            $model->{$this->caseConvertor->convert($column)} = $value;
+        return $fetchFul->getTable()
+            ?? strtolower(str_replace('\\', '_', preg_replace(
+                '#' . $this->mapping['model'] . '$#',
+                '$1',
+                $model
+            )));
+    }
+
+    protected function getModelCacheName(string $model, string $table, FetchFulOne $fetchFul): string
+    {
+        $primaryColumn = $this->dataTypes->$table['primary'];
+        foreach ($primaryColumn as &$value) {
+            $value .= '-' . $fetchFul->$value;
         }
-        return $model;
+
+        return str_replace('\\', '/', $model) . '/' . join('/', $primaryColumn);
     }
 }

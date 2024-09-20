@@ -8,11 +8,6 @@ final class PascalToSnake implements CaseConvertor
 {
     use ReverseTrait;
 
-    public function injectReverse(): void
-    {
-        $this->reverse = new SnakeToPascal();
-    }
-
     public function convert(string $string): string
     {
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $string));

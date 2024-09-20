@@ -9,18 +9,16 @@ use Nette\Database\Table\ActiveRow;
 
 final class FetchAll implements FetchFulCollection
 {
-    private Explorer $explorer;
-    private string $table;
+    use BaseFetchTrait;
 
     public function injectExplorer(Explorer $explorer): void
     {
         $this->explorer = $explorer;
     }
 
-    public function setTable(string $table): static
+    public function getCount(): int
     {
-        $this->table = $table;
-        return $this;
+        return 0;
     }
 
     public function fetchAll(): array

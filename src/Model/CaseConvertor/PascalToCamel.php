@@ -8,11 +8,6 @@ final class PascalToCamel implements CaseConvertor
 {
     use ReverseTrait;
 
-    public function injectReverse(): void
-    {
-        $this->reverse = new CamelToPascal();
-    }
-
     public function convert(string $string): string
     {
         return lcfirst($string);

@@ -8,11 +8,6 @@ final class SnakeToPascal implements CaseConvertor
 {
     use ReverseTrait;
 
-    public function injectReverse(): void
-    {
-        $this->reverse = new PascalToSnake();
-    }
-
     public function convert(string $string): string
     {
         $words = explode('_', $string);

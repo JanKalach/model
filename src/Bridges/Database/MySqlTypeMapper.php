@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Leo\Bridges\Database;
 
 use Leo\Model\DataType;
+use Nette\Utils\ArrayHash;
+use Nette\Utils\Json;
 
 final class MySqlTypeMapper implements TypeMapper
 {
@@ -27,4 +29,40 @@ final class MySqlTypeMapper implements TypeMapper
     {
         return $column['vendor']['null'] === 'YES';
     }
+
+    public function mapValue(mixed $value, DataType $dataType = null): mixed
+    {
+        if ($dataType === null) {
+            return $value;
+        }
+        \Tracy\Debugger::barDump($dataType);
+        return match ($dataType->getType()) {
+            DataType::Int => intval($value),
+            DataType::String, DataType::Text => trim(strval($value)),
+            DataType::Float => floatval($value),
+            DataType::Boolean => boolval($value),
+            DataType::Date, DataType::DateTime => DateTime::from($value),
+            DataType::Time => ($value instanceof \DateInterval) ? $value : \DateInterval::createFromDateString($value),
+            DataType::Array => $this->getArrayValue($value),
+            default => throw new \RuntimeException('The specified ["' . $name . '"] column has no defined type "' . $dataType->getType() . '"')
+        };
+    }
+
+    private function getArrayValue(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            $json = Json::decode($value, forceArrays: JSON_OBJECT_AS_ARRAY);
+            return (json_last_error() === JSON_ERROR_NONE && is_array($json))
+                ? $json
+                : [$value];
+        } elseif (is_array($value)
+            || $value instanceof ArrayHash
+        ) {
+            return $value;
+        } elseif (is_iterable($value)) {
+            return (array)$value;
+        }
+        return [];
+    }
+
 }

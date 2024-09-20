@@ -3,33 +3,15 @@
 namespace Leo\Model\Database;
 
 use Leo\Model\FetchFul\FetchFulOne;
-use Nette\Database\Explorer;
 use Nette\Database\Table\ActiveRow;
 
-final class FetchId implements FetchFulOne
+final class FetchId extends BaseFetchClass implements FetchFulOne
 {
-    private Explorer $explorer;
-    private int $id;
-    private string $table;
+    protected int $id;
 
     public function __construct(int $id)
     {
         $this->id = $id;
-    }
-
-    public function injectExplorer(Explorer $explorer): void
-    {
-        $this->explorer = $explorer;
-    }
-
-    public function getTable(): ?string
-    {
-        return $this->tableName ?? null;
-    }
-    public function setTable(string $table): static
-    {
-        $this->table = $table;
-        return $this;
     }
 
     public function fetchOne(): ?ActiveRow

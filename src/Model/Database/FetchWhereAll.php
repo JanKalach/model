@@ -3,15 +3,10 @@
 namespace Leo\Model\Database;
 
 use Leo\Model\FetchFul\FetchFulCollection;
-use Leo\Model\FetchFul\FetchFulOne;
-use Nette\Database\Explorer;
-use Nette\Database\Table\ActiveRow;
 
 final class FetchWhereAll implements FetchFulCollection
 {
-    private Explorer $explorer;
-    private string $table;
-
+    use BaseFetchTrait;
     private int $count = 0;
 
     public function __construct(
@@ -22,23 +17,6 @@ final class FetchWhereAll implements FetchFulCollection
         private string $columns = '*'
     )
     {
-
-    }
-
-    public function injectExplorer(Explorer $explorer): void
-    {
-        $this->explorer = $explorer;
-    }
-
-    public function getTable(): ?string
-    {
-        return $this->table ?? null;
-    }
-
-    public function setTable(string $table): static
-    {
-        $this->table = $table;
-        return $this;
     }
 
     public function getCount(): int

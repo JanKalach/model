@@ -9,4 +9,9 @@ use Nette\Utils\ArrayHash;
  */
 class DataTypes extends ArrayHash
 {
+
+    public function getDataType(string $table, string $column): DataType
+    {
+        return $this->$table['columns'][$column];
+    }
 }
