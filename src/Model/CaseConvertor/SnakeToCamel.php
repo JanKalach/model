@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Model\Convertor;
+namespace Leo\Model\CaseConvertor;
 
 use Leo\Model\Interface\CaseConvertor;
 
-class SnakeToCamelCaseConvertor implements CaseConvertor
+class SnakeToCamel implements CaseConvertor
 {
-    use CaseConvertorTrait;
+    use ReverseTrait;
 
     public function injectReverse(): void
     {
-        $this->reverse = new CamelToSnakeCaseConvertor();
+        $this->reverse = new CamelToSnake();
     }
 
     public function convert(string $string): string

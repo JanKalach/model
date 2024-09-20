@@ -28,22 +28,17 @@ class DataType
     private bool $allowNull;
 
     public function __construct(
-        ?string $name = null,
-        ?string $type = null,
-        ?string $nativeType = null,
-        ?string $default = null,
-        ?int $size = null,
-        bool $nullable = false,
-        bool $allowNull = false
+        array $column,
+        $typeChecker
     )
     {
-        $this->name = $name;
-        $this->type = $type;
-        $this->nativeType = $nativeType;
-        $this->default = $default;
-        $this->size = $size;
-        $this->nullable = $nullable;
-        $this->allowNull = $allowNull;
+        $this->name = $column['name'];
+        $this->type = $typeChecker->checkType($column);
+        $this->nativeType = $column['nativetype'];
+        $this->default = $column['default'];
+        $this->size = $column['size'];
+        $this->nullable = $column['nullable'];
+        $this->allowNull = $typeChecker->allowNull($column);
     }
 
     public function setAllowNull(bool $allowNull): static
@@ -72,6 +67,7 @@ class DataType
     {
         return $this->default;
     }
+
     /**
      * @param string|null $name
      */

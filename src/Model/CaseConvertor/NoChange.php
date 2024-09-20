@@ -1,10 +1,10 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Model\Convertor;
+namespace Leo\Model\CaseConvertor;
 
 use Leo\Model\Interface\CaseConvertor;
 
-class NoCaseConvertor implements CaseConvertor
+class NoChange implements CaseConvertor
 {
     public function convert(string $string): string
     {

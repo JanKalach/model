@@ -1,21 +1,20 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Model\Convertor;
+namespace Leo\Model\CaseConvertor;
 
 use Leo\Model\Interface\CaseConvertor;
 
-class CamelToSnakeCaseConvertor implements CaseConvertor
+final class PascalToSnake implements CaseConvertor
 {
-    use CaseConvertorTrait;
+    use ReverseTrait;
 
-    public function injectRevertConvertor(): void
+    public function injectReverse(): void
     {
-        $this->reverse = new CamelToSnakeCaseConvertor();
+        $this->reverse = new SnakeToPascal();
     }
 
     public function convert(string $string): string
     {
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $string));
     }
-
 }

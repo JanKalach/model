@@ -10,7 +10,7 @@ final class FetchId implements FetchFulOne
 {
     private Explorer $explorer;
     private int $id;
-    private string $tableName;
+    private string $table;
 
     public function __construct(int $id)
     {
@@ -22,16 +22,20 @@ final class FetchId implements FetchFulOne
         $this->explorer = $explorer;
     }
 
+    public function getTable(): ?string
+    {
+        return $this->tableName ?? null;
+    }
     public function setTable(string $table): static
     {
-        $this->tableName = $table;
+        $this->table = $table;
         return $this;
     }
 
     public function fetchOne(): ?ActiveRow
     {
         return $this->explorer
-            ->table($this->tableName)
+            ->table($this->table)
             ->select('*')
             ->where('id', $this->id)
             ->fetch()

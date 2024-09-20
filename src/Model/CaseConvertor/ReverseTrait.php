@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Leo\Model\Convertor;
+namespace Leo\Model\CaseConvertor;
 
 use Leo\Model\Interface\CaseConvertor;
 
-trait CaseConvertorTrait
+trait ReverseTrait
 {
     private CaseConvertor $reverse;
 

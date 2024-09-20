@@ -2,8 +2,7 @@
 
 namespace Leo\Bridges\ModelDI;
 
-use Leo\Model\Convertors\NoCaseConvertor;
-use Leo\ModelFactory;
+use Leo;
 use Nette;
 use Nette\Schema\Expect;
 
@@ -14,7 +13,13 @@ class ModelExtension extends Nette\DI\CompilerExtension
         return Expect::structure([
             'collection' => Expect::string()->default('#(.*(ModelModel|Entity))Collection$#'),
             'model' => Expect::string()->default('$1'),
-            'caseConvertor' => Expect::string()->default(NoCaseConvertor::class),
+            'caseConvertor' => Expect::string()->default(Leo\Model\Convertor\NoChange::class),
+            'mapping' => Expect::structure([
+                'model' => Expect::string()->default('App\\Model\\*\\*Model'),
+                'collection' => Expect::string()->default('App\\Model\\*\\*Collection'),
+                'entity' => Expect::string()->default('App\\Model\\*\\*Entity'),
+                'entityCollection' => Expect::string()->default('App\\Model\\*\\*EntityCollection'),
+            ])
         ]);
     }
 
@@ -29,13 +34,13 @@ class ModelExtension extends Nette\DI\CompilerExtension
         ;
         $builder
             ->addDefinition($this->prefix('factory'))
-            ->setFactory(ModelFactory::class, [
+            ->setFactory(Leo\ModelFactory::class, [
                 '@database.default.explorer',
                 '@model.caseConvertor',
                 '@container',
                 '@cache.storage',
             ])
-            ->addSetup('mapClass', [$config->collection, $config->model])
+            ->addSetup('setMapping', [$config->mapping])
         ;
     }
 }

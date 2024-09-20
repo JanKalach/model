@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Model\Convertor;
+namespace Leo\Model\CaseConvertor;
 
 use Leo\Model\Interface\CaseConvertor;
 
-class CamelToPascalCaseConvertor implements CaseConvertor
+class CamelToPascal implements CaseConvertor
 {
-    use CaseConvertorTrait;
+    use ReverseTrait;
 
     public function injectReverse(): void
     {
-        $this->reverse = new PascalToCamelCaseConvertor();
+        $this->reverse = new PascalToCamel();
     }
 
     public function convert(string $string): string

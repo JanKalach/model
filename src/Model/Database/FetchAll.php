@@ -10,7 +10,7 @@ use Nette\Database\Table\ActiveRow;
 final class FetchAll implements FetchFulCollection
 {
     private Explorer $explorer;
-    private string $tableName;
+    private string $table;
 
     public function injectExplorer(Explorer $explorer): void
     {
@@ -19,14 +19,14 @@ final class FetchAll implements FetchFulCollection
 
     public function setTable(string $table): static
     {
-        $this->tableName = $table;
+        $this->table = $table;
         return $this;
     }
 
     public function fetchAll(): array
     {
         return $this->explorer
-            ->table($this->tableName)
+            ->table($this->table)
             ->select('*')
             ->fetchAll()
         ;
