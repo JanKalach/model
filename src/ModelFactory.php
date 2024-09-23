@@ -6,8 +6,8 @@ namespace Leo;
 
 use Leo\Bridges\Database\TypeMapper;
 use Leo\Bridges\ModelCache;
-use Leo\Model\DataType;
-use Leo\Model\DataTypes;
+use Leo\Model\Database\DataType;
+use Leo\Model\Database\DataTypes;
 use Leo\Model\FetchFul\FetchFulOne;
 use Leo\Model\Interface\CaseConvertor;
 use Leo\Model\Model;
@@ -16,7 +16,6 @@ use Nette\Database\Explorer;
 use Nette\DI\Container;
 use Nette\DI\Extensions\InjectExtension;
 use Nette\Utils\ArrayHash;
-use Tracy\Debugger;
 
 final class ModelFactory
 {
@@ -128,12 +127,11 @@ final class ModelFactory
     }
 
     /**
-     * @template T className
+     * @template T of Model
      * @param string<T> $model
      * @param FetchFulOne $fetchFul
      * @param bool $useCache
      * @return T
-     * @throws \Throwable
      */
     public function createModel(string $model, FetchFulOne $fetchFul, bool $useCache = true)
     {

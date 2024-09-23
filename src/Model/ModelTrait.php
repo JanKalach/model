@@ -5,7 +5,7 @@ namespace Leo\Model;
 use Leo\Bridges\ModelCache;
 use Nette\Database\Explorer;
 
-trait ModelFactoryTrait
+trait ModelTrait
 {
     protected static \Leo\ModelFactory $modelFactory;
     protected string $cacheName;
@@ -48,4 +48,8 @@ trait ModelFactoryTrait
         return $this;
     }
 
+    public function __init(): self
+    {
+        return $this;
+    }
 }

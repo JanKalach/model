@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Leo\Bridges\Database;
 
-use Leo\Model\DataType;
+use Leo\Model\Database\DataType;
 use Nette\Utils\ArrayHash;
 use Nette\Utils\Json;
 

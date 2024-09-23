@@ -4,14 +4,9 @@ namespace Leo\Model;
 
 class Model
 {
-    use \Leo\Model\ModelFactoryTrait;
+    use ModelTrait;
 
     public static string $dbTable;
-
-    function __init(): void
-    {
-
-    }
 
     public function setValues(iterable $values): self
     {

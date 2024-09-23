@@ -1,7 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Model;
+namespace Leo\Model\Database;
 
+use Nette;
 use Nette\PhpGenerator\Helpers;
 use Nette\Utils\Type;
 
@@ -14,8 +15,6 @@ class DataType
     const Time = 'time';
     const Float = 'float';
     const Int = 'int';
-    const Mixed = 'mixed';
-    const Object = 'object';
     const String = 'string';
     const Text = 'text';
 
