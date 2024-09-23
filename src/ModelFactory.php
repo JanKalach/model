@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace Leo;
 
 use Leo\Bridges\Database\TypeMapper;
+use Leo\Bridges\ModelCache;
 use Leo\Model\DataType;
 use Leo\Model\DataTypes;
 use Leo\Model\FetchFul\FetchFulOne;
 use Leo\Model\Interface\CaseConvertor;
+use Leo\Model\Model;
 use Nette;
-use Nette\Caching;
 use Nette\Database\Explorer;
 use Nette\DI\Container;
 use Nette\DI\Extensions\InjectExtension;
 use Nette\Utils\ArrayHash;
+use Tracy\Debugger;
 
 final class ModelFactory
 {
     private Container $container;
-    private Caching\Cache $cache;
+    private ModelCache $cache;
     private Explorer $explorer;
     private CaseConvertor $caseConvertor;
     private DataTypes $dataTypes;
@@ -33,7 +35,7 @@ final class ModelFactory
         Explorer $explorer,
         CaseConvertor $caseConvertor,
         Container $container,
-        Caching\Cache $cache,
+        ModelCache $cache,
         TypeMapper $typeMapper,
     )
     {
@@ -41,7 +43,7 @@ final class ModelFactory
         $this->explorer = $explorer;
         $this->caseConvertor = $caseConvertor;
         $this->typeMapper = $typeMapper;
-        $this->cache = $cache; //new Caching\Cache($storage, 'models');
+        $this->cache = $cache;
 
         InjectExtension::callInjects($this->container, $this->caseConvertor);
 
@@ -51,7 +53,7 @@ final class ModelFactory
 
     }
 
-    public function setMapping(\stdClass $mapping): static
+    public function setMapping(\stdClass $mapping): self
     {
         $this->mapping = new ArrayHash();
         foreach ($mapping as $module => $mask) {
@@ -73,7 +75,7 @@ final class ModelFactory
         return $this;
     }
 
-    public function setRememberLoadedClasses(bool $rememberLoadedClasses): static
+    public function setRememberLoadedClasses(bool $rememberLoadedClasses): self
     {
         $this->rememberLoadedClasses = $rememberLoadedClasses;
         return $this;
@@ -82,6 +84,11 @@ final class ModelFactory
     public function getExplorer(): Explorer
     {
         return $this->explorer;
+    }
+
+    public function getCache(): ModelCache
+    {
+        return $this->cache;
     }
 
     protected function getClassName(string $model, string $from, string $to): string
@@ -123,7 +130,10 @@ final class ModelFactory
     /**
      * @template T className
      * @param string<T> $model
+     * @param FetchFulOne $fetchFul
+     * @param bool $useCache
      * @return T
+     * @throws \Throwable
      */
     public function createModel(string $model, FetchFulOne $fetchFul, bool $useCache = true)
     {
@@ -159,7 +169,7 @@ final class ModelFactory
 
     protected function getModel(string $model, FetchFulOne $fetchFul)
     {
-        $class = new $model;
+        $class = new $model();
 
         $class::$dbTable = $class::$dbTable ?? $this->getModelTable($model, $fetchFul);
         $fetch = $fetchFul
@@ -171,21 +181,26 @@ final class ModelFactory
             return $class;
         }
 
+        $this->setValues($class, $fetch);
+        return $class;
+    }
+
+    protected function setValues(Model $model, $fetch): void
+    {
         foreach ($fetch as $column => $value) {
             $columnName = $this->caseConvertor->convert($column);
-            $class->$columnName = $this
+            $model->$columnName = $this
                 ->typeMapper
-                ->mapValue($value, $this->dataTypes->getDataType($class::$dbTable, $columnName)
+                ->mapValue($value, $this->dataTypes->getDataType($model::$dbTable, $columnName)
                 )
             ;
         }
-
-        return $class;
     }
 
     protected function getModelTable(string $model, FetchFulOne $fetchFul): string
     {
         return $fetchFul->getTable()
+            ?? $model::$dbTable
             ?? strtolower(str_replace('\\', '_', preg_replace(
                 '#' . $this->mapping['model'] . '$#',
                 '$1',
@@ -195,11 +210,51 @@ final class ModelFactory
 
     protected function getModelCacheName(string $model, string $table, FetchFulOne $fetchFul): string
     {
-        $primaryColumn = $this->dataTypes->$table['primary'];
+        $primaryColumn = $this->dataTypes[$table]['primary'];
         foreach ($primaryColumn as &$value) {
             $value .= '-' . $fetchFul->$value;
         }
 
         return str_replace('\\', '/', $model) . '/' . join('/', $primaryColumn);
+    }
+
+    public function save(Model $model): self
+    {
+        $set = [];
+        $rowExists = true;
+        $dataTypes = $this->dataTypes[$model::$dbTable];
+        $updateWhere = [];
+        foreach ($dataTypes['columns'] as $column => $value) {
+            $dbColumn = $this->caseConvertor->reverse($column);
+            if (in_array($column, $dataTypes['primary'])) {
+                if (!isset($model->$column)) {
+                    $rowExists = false;
+                } else {
+                    $updateWhere[$dbColumn] = $model->$column;
+                }
+            } else {
+                $set[$dbColumn] = $this->typeMapper->saveValue($model->$column, $value);
+            }
+        }
+        \Tracy\Debugger::barDump($rowExists);
+        \Tracy\Debugger::barDump($updateWhere);
+
+        if ($rowExists) {
+            $this->explorer->table($model::$dbTable)->where($updateWhere)->update($set);
+        } else {
+            $inserted = $this->explorer->table($model::$dbTable)->insert($set);
+            $this->setValues($model, $inserted);
+        }
+
+        $tmp = new $model;
+        $tmp->setCacheName($model->getCacheName());
+
+        foreach ($dataTypes['columns'] as $column => $value) {
+            $tmp->$column = $model->$column;
+        }
+        \Tracy\Debugger::barDump($tmp);
+        $this->cache->save($model->getCacheName(), $tmp);
+
+        return $this;
     }
 }

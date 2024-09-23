@@ -1,12 +1,14 @@
 <?php declare(strict_types=1);
 
-namespace Leo\Bridges;
+namespace Leo\Model;
 
+use Leo\Bridges\ModelCache;
 use Nette\Database\Explorer;
 
 trait ModelFactoryTrait
 {
     protected static \Leo\ModelFactory $modelFactory;
+    protected string $cacheName;
 
     public function injectModelFactory(\Leo\ModelFactory $modelFactory): static
     {
@@ -26,4 +28,24 @@ trait ModelFactoryTrait
             ->getExplorer()
         ;
     }
+
+    public function getCache(): ModelCache
+    {
+        return $this
+            ->getModelFactory()
+            ->getCache()
+        ;
+    }
+
+    public function getCacheName(): string
+    {
+        return $this->cacheName;
+    }
+
+    public function setCacheName(string $cacheName): static
+    {
+        $this->cacheName = $cacheName;
+        return $this;
+    }
+
 }

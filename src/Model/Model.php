@@ -2,17 +2,29 @@
 
 namespace Leo\Model;
 
-use Leo\Bridges;
-
 class Model
 {
-    use Bridges\ModelFactoryTrait;
-    use Bridges\ModelCacheTrait;
+    use \Leo\Model\ModelFactoryTrait;
 
     public static string $dbTable;
 
     function __init(): void
     {
 
+    }
+
+    public function setValues(iterable $values): self
+    {
+        foreach ($values as $key => $value) {
+            $this->$key = $value;
+        }
+        return $this;
+    }
+
+    public function save()
+    {
+        return $this->getModelFactory()
+            ->save($this)
+        ;
     }
 }

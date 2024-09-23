@@ -35,7 +35,6 @@ final class MySqlTypeMapper implements TypeMapper
         if ($dataType === null) {
             return $value;
         }
-        \Tracy\Debugger::barDump($dataType);
         return match ($dataType->getType()) {
             DataType::Int => intval($value),
             DataType::String, DataType::Text => trim(strval($value)),
@@ -44,8 +43,16 @@ final class MySqlTypeMapper implements TypeMapper
             DataType::Date, DataType::DateTime => DateTime::from($value),
             DataType::Time => ($value instanceof \DateInterval) ? $value : \DateInterval::createFromDateString($value),
             DataType::Array => $this->getArrayValue($value),
-            default => throw new \RuntimeException('The specified ["' . $name . '"] column has no defined type "' . $dataType->getType() . '"')
+            default => throw new \RuntimeException('The specified "' . $dataType->getName() . '" column has no defined type "' . $dataType->getType() . '"')
         };
+    }
+
+    public function saveValue(mixed $value, DataType $dataType): mixed
+    {
+        if ($dataType->getType() === DataType::Array) {
+            return Json::encode($value) ?? [];
+        }
+        return $value;
     }
 
     private function getArrayValue(mixed $value): mixed
